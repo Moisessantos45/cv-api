@@ -49,8 +49,8 @@ func (r *VideoRepository) FindAll(ctx context.Context) ([]models.Video, error) {
 	}
 
 	go func() {
-		projectBytes, _ := json.Marshal(videos)
-		_ = r.rd.Set(ctx, projectsCacheKey, projectBytes, r.cTTL).Err()
+		videosBytes, _ := json.Marshal(videos)
+		_ = r.rd.Set(ctx, videosCacheKey, videosBytes, r.cTTL).Err()
 	}()
 
 	return videos, nil
