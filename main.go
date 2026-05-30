@@ -3,16 +3,19 @@ package main
 import (
 	"context"
 	"cv_api/config"
-	"cv_api/internal/middleware"
+	"cv_api/config/db"
 	"cv_api/internal/routes"
+	"cv_api/internal/shared/middleware"
+	"cv_api/internal/shared/utils"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
+	"github.com/danielkov/gin-helmet/ginhelmet"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -20,18 +23,30 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var ctx = context.Background()
-
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Advertencia: no se encontró .env, se usan variables de entorno del sistema")
 	}
 
-	log.Println("Environment variables loaded successfully")
+	if err := db.Connect(); err != nil {
+		fmt.Println("Error initializing database:", err)
+		return
+	}
 
-	API_URL := os.Getenv("SUPABASE_URL")
-	API_KEY := os.Getenv("SUPABASE_KEY")
+	if err := db.InitializeDatabase(); err != nil {
+		fmt.Println("Error initializing database:", err)
+		return
+	}
+
+	if err := config.InitRedis(context.Background()); err != nil {
+		fmt.Println("Error initializing Redis:", err)
+		return
+	}
+
+	ip := utils.GetOutboundIP()
+
+	log.Println("Environment variables loaded successfully", ip)
+
 	HOST_URL_DEV := os.Getenv("HOST_URL_DEV")
 	HOST_URL_PROD := os.Getenv("HOST_URL_PROD")
 	HOST_URL_PROD_WWW := os.Getenv("HOST_URL_PROD_WWW")
@@ -40,24 +55,15 @@ func main() {
 	log.Printf("HOST_URL_PROD: %s", HOST_URL_PROD)
 	log.Printf("HOST_URL_PROD_WWW: %s", HOST_URL_PROD_WWW)
 
-	err = config.Init(API_URL, API_KEY)
-	if err != nil {
-		log.Fatal("Error initializing Supabase client: ", err)
-	}
-
-	err = config.InitRedis(ctx)
-	if err != nil {
-		log.Fatal("Error initializing Redis client: ", err)
-	}
-
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	r.Use(ginhelmet.Default())
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{HOST_URL_DEV, HOST_URL_PROD, HOST_URL_PROD_WWW},
-		AllowMethods:     []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -65,11 +71,20 @@ func main() {
 
 	r.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/10), 10))
 
+	routes.Init()
 	api := r.Group("/api/v1")
 	{
+		routes.ProfileRoutes(api)
 		routes.ProjectRoutes(api)
 		routes.VideoRoutes(api)
 	}
+
+	auth := r.Group("/api/v1/auth")
+	{
+		routes.AuthRoutes(auth)
+	}
+
+	routes.PostRoutes(api)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -81,9 +96,8 @@ func main() {
 		c.JSON(200, gin.H{"message": "OK", "ip": c.ClientIP()})
 	})
 
-	var wg sync.WaitGroup
-	wg.Go(func() {
-		middleware.StartCleanup()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 
 	log.Println("Server starting on :4100...")
@@ -109,6 +123,8 @@ func main() {
 		log.Fatal("Server forced to shutdown: ", err)
 	}
 
-	wg.Wait()
 	log.Println("Server exiting")
 }
+
+// CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
+// CREATE INDEX idx_projects_state_id ON projects(state_id);
