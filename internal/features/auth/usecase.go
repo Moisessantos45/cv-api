@@ -59,13 +59,31 @@ func (a *AuthUseCase) Register(ctx context.Context, email string, password strin
 		host = os.Getenv("HOST_URL_DEV")
 	}
 
+	if isProduction == "production" {
+		count, err := a.repo.CountUsers()
+		if err != nil {
+			log.Printf("Error counting users: %v", err)
+			return fmt.Errorf("no se pudo completar el registro, intente más tarde")
+		}
+		if count > 0 {
+			return fmt.Errorf("no se permiten más registros en este sistema")
+		}
+	}
+
 	newUser, err := NewUser(email, password)
 	if err != nil {
 		return err
 	}
 
-	exiestingUser, err := a.repo.ExistsByEmail(email)
-	if err == nil && exiestingUser {
+	existingUser, err := a.repo.ExistsByEmail(email)
+	if err != nil {
+		log.Printf("Error checking if user exists: %v", err)
+		return fmt.Errorf("no se pudo completar el registro, intente más tarde")
+	}
+	if existingUser {
+		if isProduction == "production" {
+			return fmt.Errorf("no se pudo completar el registro")
+		}
 		return fmt.Errorf("el correo electrónico ya se encuentra registrado")
 	}
 

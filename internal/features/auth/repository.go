@@ -61,6 +61,15 @@ func (r *PostgresRepository) ExistsByEmail(email string) (bool, error) {
 	return count > 0, nil
 }
 
+func (r *PostgresRepository) CountUsers() (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Auth{}).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *PostgresRepository) GetActiveUserByEmail(email string) (*models.Auth, error) {
 	var user models.Auth
 	err := r.db.

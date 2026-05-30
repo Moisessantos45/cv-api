@@ -18,6 +18,7 @@ type AuthRepository interface {
 	Register(user *models.Auth) error
 	GetByEmail(email string) (*models.Auth, error)
 	ExistsByEmail(email string) (bool, error)
+	CountUsers() (int64, error)
 	GetActiveUserByEmail(email string) (*models.Auth, error)
 	GetByID(userId uint64) (*models.Auth, error)
 	GetBasicByID(userId uint64) (*UserBasic, error)
