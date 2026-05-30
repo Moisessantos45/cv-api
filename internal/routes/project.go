@@ -2,27 +2,38 @@ package routes
 
 import (
 	"cv_api/config"
-	"cv_api/internal/handlers"
-	"cv_api/internal/repository"
-	"cv_api/internal/services"
-	"time"
+	"cv_api/config/db"
+	"cv_api/internal/features/project"
+	"cv_api/internal/shared/middleware"
+	"cv_api/internal/shared/service"
+	"cv_api/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ProjectRoutes(api *gin.RouterGroup) {
-	client := config.Client
-	clientRd := config.Rdb
-	projectRepo := repository.NewProjectRepository(client, clientRd, time.Minute*15)
-	projectSvc := services.NewProjectService(projectRepo)
-	projectHandler := handlers.NewProjectHandlers(projectSvc)
+func ProjectRoutes(rg *gin.RouterGroup) {
+	rd := config.Rdb
+	cache := service.NewCacheService(rd)
+	maker := utils.NewPasetoMaker()
 
-	project := api.Group("/project")
+	projectRepo := project.NewPostgresRepository(db.DB)
+	projectSvc := project.NewProjectService(projectRepo, cache)
+	ph := project.NewProjectHandlers(projectSvc)
+
+	// rg.GET("/project/data", ph.GetAllData)
+	rg.GET("/project/public", ph.GetAllPublic)
+	rg.GET("/project/recent", ph.GetALLRecents)
+	rg.GET("/project/:slug", ph.GetBySlugPublic)
+	protected := rg.Group("/project")
+
+	protected.Use(middleware.AuthMiddleware(maker, rd))
 	{
-		project.GET("", projectHandler.GetProjects)
-		project.GET("/:id", projectHandler.GetProjectById)
-		project.PUT("/likes/:id", projectHandler.UpdateCounter)
-
-		// auth.POST("/register", registerHandler)
+		protected.GET("", ph.GetAll)
+		protected.GET("/slug/:slug", ph.GetBySlug)
+		protected.POST("", ph.Create)
+		protected.POST("/all", ph.CreateAll)
+		protected.PUT("/:id", ph.Update)
+		protected.PATCH("/:id/state", ph.UpdateState)
+		protected.PUT("/likes/:id", ph.UpdateCounter)
 	}
 }

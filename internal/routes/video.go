@@ -2,24 +2,35 @@ package routes
 
 import (
 	"cv_api/config"
-	"cv_api/internal/handlers"
-	"cv_api/internal/repository"
-	"cv_api/internal/services"
-	"time"
+	"cv_api/config/db"
+	"cv_api/internal/features/stream"
+	"cv_api/internal/shared/middleware"
+	"cv_api/internal/shared/service"
+	"cv_api/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-func VideoRoutes(api *gin.RouterGroup) {
-	client := config.Client
-	clientRd := config.Rdb
-	videoRepo := repository.NewVideoRepository(client, clientRd, time.Minute*15)
-	videoSvc := services.NewVideoService(videoRepo)
-	videoHandler := handlers.NewVideoHandlers(videoSvc)
+func VideoRoutes(rg *gin.RouterGroup) {
+	rd := config.Rdb
+	cache := service.NewCacheService(rd)
+	maker := utils.NewPasetoMaker()
 
-	video := api.Group("/video")
+	videoRepo := stream.NewPostgresRepository(db.DB)
+	videoSvc := stream.NewVideoUseCase(videoRepo, cache)
+	vh := stream.NewVideoHandlers(videoSvc)
+
+	//rg.GET("/stream/data", vh.GetAllData)
+	rg.GET("/stream", vh.GetAll)
+	//rg.GET("/stream/all", vh.GetAll)
+	rg.GET("/stream/recent", vh.GetAllRecents)
+	rg.GET("/stream/:id", vh.GetByID)
+	protected := rg.Group("/stream")
+
+	protected.Use(middleware.AuthMiddleware(maker, rd))
 	{
-		video.GET("", videoHandler.GetVideos)
-		// auth.POST("/register", registerHandler)
+		protected.POST("", vh.Create)
+		protected.POST("/all", vh.CreateAll)
+		protected.PUT("", vh.Update)
 	}
 }
