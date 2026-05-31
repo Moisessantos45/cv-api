@@ -47,6 +47,12 @@ type InvitePostData struct {
 	InviteLink  string
 }
 
+type ContactData struct {
+	Name    string
+	Email   string
+	Message string
+}
+
 
 func (r *EmailRenderer) RenderPasswordReset(data PasswordResetData) (string, error) {
 	var body bytes.Buffer
@@ -69,5 +75,11 @@ func (r *EmailRenderer) RenderWelcome(data WelcomeData) (string, error) {
 func (r *EmailRenderer) RenderInvitePost(data InvitePostData) (string, error) {
 	var body bytes.Buffer
 	err := r.templates.ExecuteTemplate(&body, "invite_post.html", data)
+	return body.String(), err
+}
+
+func (r *EmailRenderer) RenderContact(data ContactData) (string, error) {
+	var body bytes.Buffer
+	err := r.templates.ExecuteTemplate(&body, "contact.html", data)
 	return body.String(), err
 }
