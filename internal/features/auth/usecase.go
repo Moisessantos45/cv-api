@@ -54,7 +54,7 @@ func (a *AuthUseCase) createSession(ctx context.Context, user *models.Auth) (str
 
 func (a *AuthUseCase) Register(ctx context.Context, email string, password string) error {
 	isProduction := os.Getenv("GO_ENV")
-	var host = os.Getenv("HOST_URL_PROD")
+	var host = os.Getenv("HOST_API_PROD")
 	if isProduction == "dev" {
 		host = os.Getenv("HOST_URL_DEV")
 	}
