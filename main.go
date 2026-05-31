@@ -50,6 +50,8 @@ func main() {
 	HOST_URL_DEV := os.Getenv("HOST_URL_DEV")
 	HOST_URL_PROD := os.Getenv("HOST_URL_PROD")
 	HOST_URL_PROD_WWW := os.Getenv("HOST_URL_PROD_WWW")
+	HOST_API_PROD := os.Getenv("HOST_API_PROD")
+	HOST_API_PROD_WWW := os.Getenv("HOST_API_PROD_WWW")
 
 	log.Printf("HOST_URL_DEV: %s", HOST_URL_DEV)
 	log.Printf("HOST_URL_PROD: %s", HOST_URL_PROD)
@@ -62,7 +64,7 @@ func main() {
 	r.Use(ginhelmet.Default())
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{HOST_URL_DEV, HOST_URL_PROD, HOST_URL_PROD_WWW},
+		AllowOrigins:     []string{HOST_URL_DEV, HOST_URL_PROD, HOST_URL_PROD_WWW, HOST_API_PROD, HOST_API_PROD_WWW},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
