@@ -123,6 +123,3 @@ func main() {
 
 	log.Println("Server exiting")
 }
-
-// CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
-// CREATE INDEX idx_projects_state_id ON projects(state_id);
