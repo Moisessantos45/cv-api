@@ -11,6 +11,7 @@ type EmailJob struct {
 	To      []string
 	Subject string
 	Body    string
+	ReplyTo string
 }
 
 type Mailer struct {
@@ -38,7 +39,7 @@ func (m *Mailer) worker(id int) {
 	for job := range m.jobs {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 
-		err := SendEmailSync(ctx, job.To, job.Subject, job.Body)
+		err := SendEmailSyncWithReplyTo(ctx, job.To, job.Subject, job.Body, job.ReplyTo)
 		if err != nil {
 			log.Printf("Worker %d: Error enviando correo a %v: %v", id, job.To, err)
 		} else {
@@ -69,15 +70,20 @@ func ShutdownMailer(timeout time.Duration) {
 }
 
 func EnqueueEmail(to []string, subject string, htmlBody string) error {
+	return EnqueueEmailWithReplyTo(to, subject, htmlBody, "")
+}
+
+func EnqueueEmailWithReplyTo(to []string, subject string, htmlBody string, replyTo string) error {
 	job := EmailJob{
 		To:      to,
 		Subject: subject,
 		Body:    htmlBody,
+		ReplyTo: replyTo,
 	}
 
 	if DefaultMailer == nil {
 		log.Println("Advertencia: DefaultMailer no inicializado. Enviando síncronamente...")
-		return SendEmailSync(context.Background(), to, subject, htmlBody)
+		return SendEmailSyncWithReplyTo(context.Background(), to, subject, htmlBody, replyTo)
 	}
 
 	DefaultMailer.jobs <- job
