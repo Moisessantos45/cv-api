@@ -2,8 +2,11 @@ package routes
 
 import (
 	"cv_api/internal/features/profile"
+	"cv_api/internal/shared/middleware"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 func ProfileRoutes(rg *gin.RouterGroup) {
@@ -12,6 +15,7 @@ func ProfileRoutes(rg *gin.RouterGroup) {
 
 	protected := rg.Group("/profile")
 	protected.Use(authMiddleware())
+	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
 	{
 		// protected.GET("/dashboard-metrics", h.GetDashboardMetrics)
 		protected.POST("", ph.Create)

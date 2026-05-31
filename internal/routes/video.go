@@ -7,8 +7,10 @@ import (
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
 	"cv_api/internal/shared/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 func VideoRoutes(rg *gin.RouterGroup) {
@@ -20,14 +22,17 @@ func VideoRoutes(rg *gin.RouterGroup) {
 	videoSvc := stream.NewVideoUseCase(videoRepo, cache)
 	vh := stream.NewVideoHandlers(videoSvc)
 
-	//rg.GET("/stream/data", vh.GetAllData)
-	rg.GET("/stream", vh.GetAll)
-	//rg.GET("/stream/all", vh.GetAll)
-	rg.GET("/stream/recent", vh.GetAllRecents)
-	rg.GET("/stream/:id", vh.GetByID)
-	protected := rg.Group("/stream")
+	public := rg.Group("")
+	public.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/60), 60))
+	{
+		public.GET("/stream", vh.GetAll)
+		public.GET("/stream/recent", vh.GetAllRecents)
+		public.GET("/stream/:id", vh.GetByID)
+	}
 
+	protected := rg.Group("/stream")
 	protected.Use(middleware.AuthMiddleware(maker, rd))
+	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
 	{
 		protected.POST("", vh.Create)
 		protected.POST("/all", vh.CreateAll)

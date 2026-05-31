@@ -7,8 +7,10 @@ import (
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
 	"cv_api/internal/shared/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 func PostRoutes(rg *gin.RouterGroup) {
@@ -20,11 +22,17 @@ func PostRoutes(rg *gin.RouterGroup) {
 	postSvc := post.NewPostService(postRepo, cache, profileUC)
 	ph := post.NewPostHandlers(postSvc, profileUC)
 
-	rg.GET("/post/public", ph.GetAllPublic)
-	rg.GET("/post/recent", ph.GetAllRecents)
-	rg.GET("/post/:slug", ph.GetBySlugPublic)
+	public := rg.Group("")
+	public.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/60), 60))
+	{
+		public.GET("/post/public", ph.GetAllPublic)
+		public.GET("/post/recent", ph.GetAllRecents)
+		public.GET("/post/:slug", ph.GetBySlugPublic)
+	}
+
 	protected := rg.Group("/post")
 	protected.Use(middleware.AuthMiddleware(maker, rd))
+	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
 	{
 		protected.GET("/states", ph.GetAllStates)
 		protected.GET("/user", ph.GetAll)

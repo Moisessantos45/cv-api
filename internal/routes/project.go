@@ -7,8 +7,10 @@ import (
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
 	"cv_api/internal/shared/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 func ProjectRoutes(rg *gin.RouterGroup) {
@@ -20,13 +22,17 @@ func ProjectRoutes(rg *gin.RouterGroup) {
 	projectSvc := project.NewProjectService(projectRepo, cache)
 	ph := project.NewProjectHandlers(projectSvc)
 
-	// rg.GET("/project/data", ph.GetAllData)
-	rg.GET("/project/public", ph.GetAllPublic)
-	rg.GET("/project/recent", ph.GetALLRecents)
-	rg.GET("/project/:slug", ph.GetBySlugPublic)
-	protected := rg.Group("/project")
+	public := rg.Group("")
+	public.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/60), 60))
+	{
+		public.GET("/project/public", ph.GetAllPublic)
+		public.GET("/project/recent", ph.GetALLRecents)
+		public.GET("/project/:slug", ph.GetBySlugPublic)
+	}
 
+	protected := rg.Group("/project")
 	protected.Use(middleware.AuthMiddleware(maker, rd))
+	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
 	{
 		protected.GET("", ph.GetAll)
 		protected.GET("/slug/:slug", ph.GetBySlug)
