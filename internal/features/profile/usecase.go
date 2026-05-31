@@ -5,7 +5,11 @@ import (
 	"cv_api/internal/features/auth"
 	"cv_api/internal/models"
 	"cv_api/internal/shared/service"
+	"cv_api/internal/shared/templates"
+	"cv_api/internal/shared/utils"
 	"fmt"
+	"os"
+	"strings"
 )
 
 type ProfileUseCase struct {
@@ -146,6 +150,52 @@ func (s *ProfileUseCase) Update(ctx context.Context, authID uint64, data *models
 	err = s.repo.Update(ctx, authID, validatedProfile)
 	if err != nil {
 		return fmt.Errorf("error al actualizar el perfil: %w", err)
+	}
+
+	return nil
+}
+
+func (s *ProfileUseCase) Contact(ctx context.Context, name string, email string, message string) error {
+	name = strings.TrimSpace(name)
+	email = strings.TrimSpace(email)
+	message = strings.TrimSpace(message)
+
+	if name == "" || len(name) < 2 {
+		return fmt.Errorf("el nombre es requerido (mínimo 2 caracteres)")
+	}
+
+	if email == "" || !utils.EmailRegex.MatchString(email) {
+		return fmt.Errorf("el correo electrónico es requerido y debe ser válido")
+	}
+
+	if message == "" || len(message) < 10 {
+		return fmt.Errorf("el mensaje es requerido (mínimo 10 caracteres)")
+	}
+
+	adminEmail := os.Getenv("ADMIN_EMAIL")
+	if adminEmail == "" {
+		return fmt.Errorf("configuración de correo del administrador no encontrada")
+	}
+
+	renderer, err := templates.NewEmailRenderer()
+	if err != nil {
+		return fmt.Errorf("error al renderizar el mensaje: %w", err)
+	}
+
+	data := templates.ContactData{
+		Name:    name,
+		Email:   email,
+		Message: message,
+	}
+
+	htmlContent, err := renderer.RenderContact(data)
+	if err != nil {
+		return fmt.Errorf("error al renderizar el mensaje: %w", err)
+	}
+
+	err = utils.EnqueueEmailWithReplyTo([]string{adminEmail}, "Nuevo mensaje de contacto", htmlContent, email)
+	if err != nil {
+		return fmt.Errorf("error al enviar el mensaje: %w", err)
 	}
 
 	return nil

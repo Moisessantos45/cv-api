@@ -94,3 +94,25 @@ func (h *ProfileHandler) Update(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"data": profile, "message": "Perfil actualizado correctamente"})
 }
+
+func (h *ProfileHandler) Contact(c *gin.Context) {
+	var input struct {
+		Name    string `json:"name" binding:"required"`
+		Email   string `json:"email" binding:"required"`
+		Message string `json:"message" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Datos de contacto inválidos", "error": err.Error()})
+		return
+	}
+
+	err := h.service.Contact(c.Request.Context(), input.Name, input.Email, input.Message)
+	if err != nil {
+		log.Printf("Error al enviar mensaje de contacto: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Mensaje enviado correctamente"})
+}

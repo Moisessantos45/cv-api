@@ -34,6 +34,7 @@ type ProfileService interface {
 	GetByAuthID(ctx context.Context, authID uint64) (*models.Profile, error)
 	Create(ctx context.Context, authID uint64, data *models.Profile) error
 	Update(ctx context.Context, authID uint64, data *models.Profile) error
+	Contact(ctx context.Context, name string, email string, message string) error
 }
 
 func NewProfile(data models.Profile) (*models.Profile, error) {

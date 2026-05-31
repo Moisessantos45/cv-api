@@ -12,6 +12,11 @@ import (
 func ProfileRoutes(rg *gin.RouterGroup) {
 
 	ph := profile.NewProfileHandler(profileUC)
+	public := rg.Group("")
+	public.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/60), 60))
+	{
+		rg.POST("/contact", ph.Contact)
+	}
 
 	protected := rg.Group("/profile")
 	protected.Use(authMiddleware())
