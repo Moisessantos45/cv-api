@@ -5,7 +5,6 @@ import (
 	"cv_api/config"
 	"cv_api/config/db"
 	"cv_api/internal/routes"
-	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/utils"
 	"fmt"
 	"log"
@@ -20,7 +19,6 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -70,8 +68,6 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
-
-	r.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/10), 10))
 
 	routes.Init()
 	api := r.Group("/api/v1")
