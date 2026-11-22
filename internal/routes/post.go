@@ -6,7 +6,6 @@ import (
 	"cv_api/internal/features/post"
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
-	"cv_api/internal/shared/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,6 @@ import (
 func PostRoutes(rg *gin.RouterGroup) {
 	rd := config.Rdb
 	cache := service.NewCacheService(rd)
-	maker := utils.NewPasetoMaker()
 
 	postRepo := post.NewPostgresRepository(db.DB)
 	postSvc := post.NewPostService(postRepo, cache, profileUC)
@@ -31,8 +29,8 @@ func PostRoutes(rg *gin.RouterGroup) {
 	}
 
 	protected := rg.Group("/post")
-	protected.Use(middleware.AuthMiddleware(maker, rd))
-	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
+	protected.Use(authMiddleware())
+	protected.Use(idempotencyMiddleware())
 	{
 		protected.GET("/states", ph.GetAllStates)
 		protected.GET("/user", ph.GetAll)

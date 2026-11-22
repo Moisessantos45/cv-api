@@ -6,7 +6,6 @@ import (
 	"cv_api/internal/features/project"
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
-	"cv_api/internal/shared/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,6 @@ import (
 func ProjectRoutes(rg *gin.RouterGroup) {
 	rd := config.Rdb
 	cache := service.NewCacheService(rd)
-	maker := utils.NewPasetoMaker()
 
 	projectRepo := project.NewPostgresRepository(db.DB)
 	projectSvc := project.NewProjectService(projectRepo, cache)
@@ -31,8 +29,8 @@ func ProjectRoutes(rg *gin.RouterGroup) {
 	}
 
 	protected := rg.Group("/project")
-	protected.Use(middleware.AuthMiddleware(maker, rd))
-	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
+	protected.Use(authMiddleware())
+	protected.Use(idempotencyMiddleware())
 	{
 		protected.GET("", ph.GetAll)
 		protected.GET("/slug/:slug", ph.GetBySlug)

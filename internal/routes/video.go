@@ -6,7 +6,6 @@ import (
 	"cv_api/internal/features/stream"
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
-	"cv_api/internal/shared/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,6 @@ import (
 func VideoRoutes(rg *gin.RouterGroup) {
 	rd := config.Rdb
 	cache := service.NewCacheService(rd)
-	maker := utils.NewPasetoMaker()
 
 	videoRepo := stream.NewPostgresRepository(db.DB)
 	videoSvc := stream.NewVideoUseCase(videoRepo, cache)
@@ -31,8 +29,8 @@ func VideoRoutes(rg *gin.RouterGroup) {
 	}
 
 	protected := rg.Group("/stream")
-	protected.Use(middleware.AuthMiddleware(maker, rd))
-	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
+	protected.Use(authMiddleware())
+	protected.Use(idempotencyMiddleware())
 	{
 		protected.POST("", vh.Create)
 		protected.POST("/all", vh.CreateAll)

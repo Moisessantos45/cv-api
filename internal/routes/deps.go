@@ -4,7 +4,10 @@ import (
 	"cv_api/config"
 	"cv_api/config/db"
 	"cv_api/internal/features/auth"
+	"cv_api/internal/features/post"
 	"cv_api/internal/features/profile"
+	"cv_api/internal/features/project"
+	"cv_api/internal/features/stream"
 	"cv_api/internal/shared/middleware"
 	"cv_api/internal/shared/service"
 	"cv_api/internal/shared/utils"
@@ -16,6 +19,9 @@ var (
 	maker     *utils.PasetoMaker
 	authUc    *auth.AuthUseCase
 	profileUC profile.ProfileService
+	projectUC project.ProjectService
+	postUC    post.PostService
+	videoUC   stream.VideoService
 )
 
 func Init() {
@@ -29,6 +35,14 @@ func Init() {
 	uRp := profile.NewPostgresRepository(db.DB)
 	profileUC = profile.NewProfileUseCase(uRp, authUc, cache)
 
+	pRp := project.NewPostgresRepository(db.DB)
+	projectUC = project.NewProjectService(pRp, cache)
+
+	poRp := post.NewPostgresRepository(db.DB)
+	postUC = post.NewPostService(poRp, cache, profileUC)
+
+	vRp := stream.NewPostgresRepository(db.DB)
+	videoUC = stream.NewVideoUseCase(vRp, cache)
 }
 
 func authMiddleware() gin.HandlerFunc {
@@ -37,4 +51,8 @@ func authMiddleware() gin.HandlerFunc {
 
 func preAuthMiddleware() gin.HandlerFunc {
 	return middleware.PreAuthMiddleware(config.Rdb)
+}
+
+func idempotencyMiddleware() gin.HandlerFunc {
+	return middleware.IdempotencyMiddleware(config.Rdb)
 }

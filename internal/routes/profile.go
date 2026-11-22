@@ -20,11 +20,17 @@ func ProfileRoutes(rg *gin.RouterGroup) {
 
 	protected := rg.Group("/profile")
 	protected.Use(authMiddleware())
-	protected.Use(middleware.RateLimiterMiddleware(rate.Every(time.Minute/300), 300))
+	protected.Use(idempotencyMiddleware())
 	{
-		// protected.GET("/dashboard-metrics", h.GetDashboardMetrics)
 		protected.POST("", ph.Create)
 		protected.GET("", ph.GetById)
 		protected.PUT("", ph.Update)
+	}
+
+	metrics := rg.Group("/dashboard-metrics")
+	metrics.Use(authMiddleware())
+	metrics.Use(idempotencyMiddleware())
+	{
+		metrics.GET("", GetDashboardMetrics)
 	}
 }
