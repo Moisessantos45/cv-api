@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"cv_api/internal/shared/utils"
+	"time"
 
 	"fmt"
 	"log"
@@ -68,6 +69,18 @@ func PreAuthMiddleware(rd *redis.Client) gin.HandlerFunc {
 		}
 
 		c.Set("pre_auth_session_id", sessionID)
+		c.Next()
+	}
+}
+
+func RequestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		reqID := c.GetHeader("X-Request-ID")
+		if reqID == "" {
+			reqID = time.Now().Format("20060102150405")
+		}
+		c.Set("RequestID", reqID)
+		c.Writer.Header().Set("X-Request-ID", reqID)
 		c.Next()
 	}
 }

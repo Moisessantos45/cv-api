@@ -5,12 +5,14 @@ import (
 	"cv_api/config"
 	"cv_api/config/db"
 	"cv_api/internal/routes"
-	"cv_api/internal/shared/utils"
+	"cv_api/internal/shared/helper"
+	"cv_api/internal/shared/middleware"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -41,9 +44,22 @@ func main() {
 		return
 	}
 
-	ip := utils.GetOutboundIP()
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Recovered in cache goroutine: %v", r)
+			}
+		}()
 
-	log.Println("Environment variables loaded successfully", ip)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if sqlDB, err := db.GetSQLDB(); err == nil {
+			if err := sqlDB.PingContext(ctx); err != nil {
+				log.Printf("Advertencia en warm-up de DB: %v", err)
+			}
+		}
+	}()
 
 	HOST_URL_DEV := os.Getenv("HOST_URL_DEV")
 	HOST_URL_PROD := os.Getenv("HOST_URL_PROD")
@@ -58,8 +74,23 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	r.Use(middleware.RequestIDMiddleware())
+	r.Use(gin.Logger(), middleware.SafeRecovery())
+	r.HandleMethodNotAllowed = true
+	r.NoRoute(middleware.NotFound)
+	r.NoMethod(middleware.MethodNotAllowed)
+	if strings.TrimSpace(os.Getenv("GO_ENV")) == "prod" {
+		_ = r.SetTrustedProxies([]string{"127.0.0.1", "::1"})
+	} else {
+		_ = r.SetTrustedProxies(nil)
+	}
+
+	r.Use(gzip.Gzip(gzip.DefaultCompression,
+		gzip.WithExcludedPaths([]string{"/health", "/api/test"}),
+		gzip.WithExcludedExtensions([]string{".png", ".gif", ".jpeg", ".jpg", ".webp", ".zip", ".gz"}),
+	))
 	r.Use(ginhelmet.Default())
+	r.Use(ginhelmet.Referrer())
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{HOST_URL_DEV, HOST_URL_PROD, HOST_URL_PROD_WWW, HOST_API_PROD, HOST_API_PROD_WWW},
@@ -67,7 +98,19 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}))
+
+	middleware.StartCleanup()
+	// 5 req/seg (300/min) con burst 50, compartido entre instancias vía Redis
+	r.Use(middleware.RateLimiterRedis(config.Rdb, "global", rate.Limit(5), 50))
+
+	// Solo application/json y multipart/form-data, con límites de tamaño y validación de JSON
+	r.MaxMultipartMemory = 8 << 20
+	r.Use(middleware.RequestGuard(middleware.DefaultGuardConfig))
+
+	// Los errores de validación usan los nombres del tag json (p. ej. first_name)
+	helper.RegisterJSONTagName()
 
 	routes.Init()
 	api := r.Group("/api/v1")
@@ -100,8 +143,13 @@ func main() {
 
 	log.Println("Server starting on :4100...")
 	srv := &http.Server{
-		Addr:    ":4100",
-		Handler: r,
+		Addr:              ":4100",
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
 	go func() {
@@ -120,6 +168,14 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown: ", err)
 	}
+
+	if config.Rdb != nil {
+		if err := config.Rdb.Close(); err != nil {
+			log.Println("Error closing Redis:", err)
+		}
+	}
+
+	db.CloseDB()
 
 	log.Println("Server exiting")
 }
