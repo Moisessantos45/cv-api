@@ -17,6 +17,7 @@ type VideoRepository interface {
 	ExistsById(ctx context.Context, id uint64) (bool, error)
 	Create(ctx context.Context, data *models.Video) error
 	Update(ctx context.Context, id uint64, data *models.Video) error
+	GetStats(ctx context.Context) (*models.VideoStats, error)
 }
 
 type VideoService interface {
@@ -27,6 +28,7 @@ type VideoService interface {
 	GetByID(ctx context.Context, id uint64) (*models.Video, error)
 	Create(ctx context.Context, data *models.Video) error
 	Update(ctx context.Context, id uint64, data *models.Video) error
+	GetStats(ctx context.Context) (*models.VideoStats, error)
 }
 
 func NewVideo(data models.Video) (*models.Video, error) {

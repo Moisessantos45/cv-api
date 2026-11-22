@@ -43,6 +43,7 @@ type ProjectRepository interface {
 	Update(ctx context.Context, id uint64, data map[string]any) error
 	UpdateState(ctx context.Context, id uint64, stateID uint64) error
 	UpdateCounter(ctx context.Context, id uint64, counter int64) error
+	GetStats(ctx context.Context) (*models.ProjectStats, error)
 }
 
 type ProjectService interface {
@@ -58,6 +59,7 @@ type ProjectService interface {
 	Update(ctx context.Context, slug string, data *models.Project) error
 	UpdateState(ctx context.Context, id uint64, stateID uint64) error
 	UpdateCounter(ctx context.Context, id uint64, counter int64) error
+	GetStats(ctx context.Context) (*models.ProjectStats, error)
 }
 
 type PaginatedProjects struct {

@@ -106,3 +106,17 @@ func (r *PostgresRepository) Update(ctx context.Context, id uint64, data *models
 
 	return nil
 }
+
+func (r *PostgresRepository) GetStats(ctx context.Context) (*models.VideoStats, error) {
+	var stats models.VideoStats
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(COUNT(*), 0) as total FROM videos
+	`).Scan(&stats).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}

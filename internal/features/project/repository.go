@@ -232,3 +232,22 @@ func (r *PostgresRepository) UpdateCounter(ctx context.Context, id uint64, count
 
 	return nil
 }
+
+func (r *PostgresRepository) GetStats(ctx context.Context) (*models.ProjectStats, error) {
+	var stats models.ProjectStats
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(COUNT(*), 0) as total,
+			COALESCE(SUM(CASE WHEN state_id = 1 THEN 1 ELSE 0 END), 0) as draft,
+			COALESCE(SUM(CASE WHEN state_id = 2 THEN 1 ELSE 0 END), 0) as published,
+			COALESCE(SUM(CASE WHEN state_id = 3 THEN 1 ELSE 0 END), 0) as archived
+		FROM projects
+	`).Scan(&stats).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}

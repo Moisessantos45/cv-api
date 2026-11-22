@@ -137,3 +137,7 @@ func (s *VideoUseCase) Update(ctx context.Context, id uint64, data *models.Video
 
 	return nil
 }
+
+func (s *VideoUseCase) GetStats(ctx context.Context) (*models.VideoStats, error) {
+	return s.repo.GetStats(ctx)
+}

@@ -40,6 +40,7 @@ type PotstRepository interface {
 	ExistsById(ctx context.Context, id uint64) (bool, error)
 	Create(ctx context.Context, data *models.Post) error
 	Update(ctx context.Context, slug string, data map[string]any) error
+	GetStats(ctx context.Context) (*models.PostStats, error)
 }
 
 type PostService interface {
@@ -55,6 +56,7 @@ type PostService interface {
 	ExistsById(ctx context.Context, id uint64) (bool, error)
 	Create(ctx context.Context, authID uint64, data *models.Post) error
 	Update(ctx context.Context, authID uint64, slug string, post *models.Post) error
+	GetStats(ctx context.Context) (*models.PostStats, error)
 }
 
 func generateSlug(title string) string {

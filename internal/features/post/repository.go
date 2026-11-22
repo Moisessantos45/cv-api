@@ -169,3 +169,24 @@ func (r *PostgresRepository) Update(ctx context.Context, slug string, data map[s
 
 	return nil
 }
+
+func (r *PostgresRepository) GetStats(ctx context.Context) (*models.PostStats, error) {
+	var stats models.PostStats
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(COUNT(*), 0) as total,
+			COALESCE(SUM(CASE WHEN state_id = 1 THEN 1 ELSE 0 END), 0) as draft,
+			COALESCE(SUM(CASE WHEN state_id = 2 THEN 1 ELSE 0 END), 0) as published,
+			COALESCE(SUM(CASE WHEN state_id = 3 THEN 1 ELSE 0 END), 0) as archived,
+			COALESCE(SUM(CASE WHEN state_id = 4 THEN 1 ELSE 0 END), 0) as private,
+			COALESCE(SUM(CASE WHEN state_id = 5 THEN 1 ELSE 0 END), 0) as unlisted
+		FROM posts
+	`).Scan(&stats).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}

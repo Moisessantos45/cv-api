@@ -175,3 +175,7 @@ func (s *PostUseCase) Update(ctx context.Context, authID uint64, slug string, po
 
 	return nil
 }
+
+func (s *PostUseCase) GetStats(ctx context.Context) (*models.PostStats, error) {
+	return s.repo.GetStats(ctx)
+}

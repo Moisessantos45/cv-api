@@ -188,3 +188,7 @@ func (s *ProjectUseCase) UpdateCounter(ctx context.Context, id uint64, value int
 
 	return s.repo.UpdateCounter(ctx, id, currentCount+1)
 }
+
+func (s *ProjectUseCase) GetStats(ctx context.Context) (*models.ProjectStats, error) {
+	return s.repo.GetStats(ctx)
+}
